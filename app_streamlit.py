@@ -1,10 +1,10 @@
 import streamlit as st
-import requests
 import pandas as pd
-import json
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import plotly.express as px
+
+from scripts.inference import ChurnPredictor
 
 # Page configuration
 st.set_page_config(
@@ -47,8 +47,19 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# API Configuration
-API_URL = "http://localhost:8000"
+# Load model once using cache
+@st.cache_resource
+def load_predictor():
+    """Load the churn prediction model (cached)"""
+    try:
+        predictor = ChurnPredictor()
+        return predictor
+    except Exception as e:
+        st.error(f"Failed to load model: {e}")
+        return None
+
+# Initialize predictor
+predictor = load_predictor()
 
 # Header
 st.markdown('<div class="main-header">🛒 Olist Customer Churn Prediction</div>', unsafe_allow_html=True)
@@ -60,7 +71,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📊 About")
     st.info("""
-    This application predicts customer churn for Olist e-commerce platform using:
+    This application predicts customer churn using:
     - **LightGBM** classifier
     - **RFM** features
     - **Real transaction data**
@@ -74,23 +85,13 @@ with st.sidebar:
     - Model insights
     """)
     
-    # Check API health
+    # Model status
     st.markdown("---")
-    st.markdown("### 🔌 API Status")
-    try:
-        response = requests.get(f"{API_URL}/health", timeout=2)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("model_loaded"):
-                st.success("✅ API Connected")
-                st.success("✅ Model Loaded")
-            else:
-                st.warning("⚠️ Model Not Loaded")
-        else:
-            st.error("❌ API Error")
-    except:
-        st.error("❌ API Offline")
-        st.warning("Start API: `python -m uvicorn scripts.app:app --host 0.0.0.0 --port 8000`")
+    st.markdown("### 🔌 Model Status")
+    if predictor:
+        st.success("✅ Model Loaded")
+    else:
+        st.error("❌ Model Not Loaded")
 
 # Main content
 tab1, tab2, tab3, tab4 = st.tabs(["🔮 Single Prediction", "📊 Batch Prediction", "📈 Analytics", "ℹ️ About"])
@@ -124,14 +125,15 @@ with tab1:
         payment_value = st.number_input("Payment Value (R$)", min_value=0.0, value=37.29, step=0.1)
     
     if st.button("🔮 Predict Churn", type="primary", use_container_width=True):
-        with st.spinner("Making prediction..."):
-            try:
-                # Prepare request
-                request_data = {
-                    "current_date": datetime.now().isoformat(),
-                    "transactions": [{
+        if not predictor:
+            st.error("❌ Model not loaded. Please refresh the page.")
+        else:
+            with st.spinner("Making prediction..."):
+                try:
+                    # Prepare transaction data
+                    transaction_data = pd.DataFrame([{
                         "order_id": order_id,
-                        "order_purchase_timestamp": order_date.isoformat() + "T10:00:00",
+                        "order_purchase_timestamp": order_date.strftime("%Y-%m-%d") + " 10:00:00",
                         "customer_id": customer_id,
                         "customer_unique_id": customer_unique_id,
                         "customer_state": customer_state,
@@ -142,17 +144,18 @@ with tab1:
                         "freight_value": freight_value,
                         "payment_type": payment_type,
                         "payment_value": payment_value
-                    }]
-                }
-                
-                # Make API call
-                response = requests.post(f"{API_URL}/predict_churn", json=request_data, timeout=10)
-                
-                if response.status_code == 200:
-                    result = response.json()
+                    }])
                     
-                    if result["predictions"]:
-                        pred = result["predictions"][0]
+                    # Make prediction
+                    predictions_df = predictor.predict_churn(
+                        transaction_data,
+                        pd.to_datetime(datetime.now())
+                    )
+                    
+                    if predictions_df.empty:
+                        st.warning("No predictions returned. Customer may not have enough transaction history.")
+                    else:
+                        pred = predictions_df.iloc[0]
                         churn_prob = pred["churn_probability"]
                         is_churn = pred["is_churn"]
                         
@@ -222,16 +225,10 @@ with tab1:
                             - Offer loyalty rewards
                             - Cross-sell relevant products
                             """)
-                    else:
-                        st.warning("No predictions returned. Customer may not have enough transaction history.")
-                else:
-                    st.error(f"API Error: {response.status_code}")
-                    st.code(response.text)
-                    
-            except requests.exceptions.ConnectionError:
-                st.error("❌ Cannot connect to API. Please ensure the API server is running.")
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
+                        
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+                    st.exception(e)
 
 # Tab 2: Batch Prediction
 with tab2:
@@ -243,7 +240,7 @@ with tab2:
     with st.expander("📄 View CSV Template"):
         sample_data = pd.DataFrame({
             'order_id': ['order1', 'order2'],
-            'order_purchase_timestamp': ['2025-10-01T10:00:00', '2025-10-15T14:30:00'],
+            'order_purchase_timestamp': ['2025-10-01 10:00:00', '2025-10-15 14:30:00'],
             'customer_id': ['cust1', 'cust2'],
             'customer_unique_id': ['unique1', 'unique2'],
             'customer_state': ['SP', 'RJ'],
@@ -276,21 +273,16 @@ with tab2:
             st.dataframe(df.head(10))
             
             if st.button("🔮 Predict All", type="primary"):
-                with st.spinner("Processing predictions..."):
-                    try:
-                        # Prepare request
-                        transactions = df.to_dict('records')
-                        request_data = {
-                            "current_date": datetime.now().isoformat(),
-                            "transactions": transactions
-                        }
-                        
-                        # Make API call
-                        response = requests.post(f"{API_URL}/predict_churn", json=request_data, timeout=30)
-                        
-                        if response.status_code == 200:
-                            result = response.json()
-                            predictions_df = pd.DataFrame(result["predictions"])
+                if not predictor:
+                    st.error("❌ Model not loaded. Please refresh the page.")
+                else:
+                    with st.spinner("Processing predictions..."):
+                        try:
+                            # Make predictions
+                            predictions_df = predictor.predict_churn(
+                                df,
+                                pd.to_datetime(datetime.now())
+                            )
                             
                             st.markdown("### 📊 Prediction Results")
                             st.dataframe(predictions_df)
@@ -314,10 +306,9 @@ with tab2:
                                 file_name="churn_predictions.csv",
                                 mime="text/csv"
                             )
-                        else:
-                            st.error(f"API Error: {response.status_code}")
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
+                        except Exception as e:
+                            st.error(f"Error: {str(e)}")
+                            st.exception(e)
         except Exception as e:
             st.error(f"Error reading CSV: {str(e)}")
 
@@ -325,7 +316,7 @@ with tab2:
 with tab3:
     st.markdown("## 📈 Model Analytics & Insights")
     
-    # Sample analytics (in production, this would come from a database)
+    # Sample analytics
     st.markdown("### Model Performance Metrics")
     
     col1, col2, col3, col4 = st.columns(4)
@@ -387,7 +378,6 @@ with tab4:
     
     ### 🔧 Technology Stack
     
-    - **Backend**: FastAPI
     - **Frontend**: Streamlit
     - **ML Framework**: scikit-learn, LightGBM
     - **Visualization**: Plotly, Seaborn
@@ -414,7 +404,8 @@ with tab4:
     
     ### 👨‍💻 Developer
     
-    Created as part of an end-to-end ML project demonstration.
+    **Rasim Abiyev**  
+    Machine Learning Student
     
     ### 📝 License
     
@@ -429,20 +420,15 @@ with tab4:
         1. **Single Prediction**: Enter customer and order details to get instant churn prediction
         2. **Batch Prediction**: Upload a CSV file with multiple customer transactions
         3. **Analytics**: View model performance and insights
-        4. **API**: Use the REST API directly for integration
         
-        **API Endpoints:**
-        - `GET /health` - Check API status
-        - `POST /predict_churn` - Make predictions
-        
-        **Documentation:** http://localhost:8000/docs
+        **No API Required!** The model runs directly in the app.
         """)
 
 # Footer
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666; padding: 2rem;'>
-    <p>🛒 Olist Churn Prediction System | Built with ❤️ using Streamlit & FastAPI</p>
-    <p>© 2025 | All Rights Reserved</p>
+    <p>🛒 Olist Churn Prediction System | Built with ❤️ using Streamlit & LightGBM</p>
+    <p>© 2025 Rasim Abiyev | All Rights Reserved</p>
 </div>
 """, unsafe_allow_html=True)

@@ -208,48 +208,18 @@ python -m scripts.pipeline
 python -m scripts.pipeline
 ```
 
-### 2. Start API Server
+### 2. Start the Application
 ```bash
-python -m uvicorn scripts.app:app --host 127.0.0.1 --port 8000
+streamlit run app_streamlit.py
 ```
 
-### 3. Start Web Interface
-```bash
-streamlit run app_streamlit.py --server.port 8501
-```
+The app will open in your browser at `http://localhost:8501`
 
-### API Endpoints
-
-**Base URL**: `http://localhost:8000`
-
-**Health Check**:
-```bash
-GET /health
-```
-
-**Predict Churn**:
-```bash
-POST /predict_churn
-Content-Type: application/json
-
-{
-  "current_date": "2025-11-20T12:00:00",
-  "transactions": [
-    {
-      "order_id": "...",
-      "customer_id": "...",
-      "customer_unique_id": "...",
-      "order_purchase_timestamp": "2025-10-01T10:00:00",
-      "customer_state": "SP",
-      "product_category_name": "eletronicos",
-      "price": 29.9,
-      "freight_value": 7.39,
-      "payment_type": "credit_card",
-      "payment_value": 37.29
-    }
-  ]
-}
-```
+### Features
+- **CSV Upload**: Upload transaction data for batch predictions
+- **Real-time Results**: Get instant churn predictions
+- **Visualizations**: Interactive charts showing churn distribution
+- **Download**: Export predictions as CSV
 
 ---
 
@@ -287,17 +257,21 @@ The project includes a fully functional web interface with:
 
 ### Local Deployment
 ```bash
-# Start API
-python -m uvicorn scripts.app:app --host 127.0.0.1 --port 8000
-
-# Start Frontend (in another terminal)
-streamlit run app_streamlit.py --server.port 8501
+streamlit run app_streamlit.py
 ```
 
-## Live Demo
-> **Note**: Deploy your application to Streamlit Cloud, Heroku, or other platforms and add the link here.
+### Streamlit Cloud Deployment
 
-[Streamlit Deploy Link](https://your-app-url.streamlit.app) *(Coming soon)*
+1. Push your code to GitHub
+2. Go to [share.streamlit.io](https://share.streamlit.io)
+3. Connect your GitHub repository
+4. Select `app_streamlit.py` as the main file
+5. Deploy!
+
+## Live Demo
+> **Note**: Deploy to Streamlit Cloud and add your link here
+
+[Live Demo](https://health-churn.streamlit.app)
 
 **Deployment Checklist:**
 - ✅ Environment variables configured
