@@ -1,0 +1,74 @@
+# .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+*.swp
+
+# AI Assistant artifacts
+.gemini/
+.cursor/
+.aider/
+*.artifact.md
+walkthrough.md
+verification_report.md
+project_completion_checklist.md
+PROJECT_SUMMARY.md
+
+# Large files (optional - comment out if you want to include them)
+# models/*.pkl
+# data/*.csv
+
+# Environment variables
+.env
+.env.local
