@@ -67,7 +67,7 @@ st.markdown('<div class="sub-header">Predict customer churn using machine learni
 
 # Sidebar
 with st.sidebar:
-    st.image("https://via.placeholder.com/300x100/1f77b4/ffffff?text=Olist+Analytics", use_container_width=True)
+    st.image("docs/screenshots/olist_banner.png", use_container_width=True)
     st.markdown("---")
     st.markdown("### 📊 About")
     st.info("""
