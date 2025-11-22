@@ -170,6 +170,16 @@ def run_training_pipeline():
             X.loc[:, col] = X[col].replace([np.inf, -np.inf], np.nan)
             X.loc[:, col] = X[col].fillna(X[col].median())
 
+
+    # ===================================================================
+    # Validation Strategy: Stratified Train-Test Split (80/20)
+    # ===================================================================
+    # Why stratified split? Ensures same churn distribution in train/test (~95%)
+    # Why NOT K-Fold? Computational cost + temporal leakage + diminishing returns
+    # Why NOT time-based? Limited data (2 years) + already temporal features
+    # See README "Validation Strategy" section for detailed justification
+    # For production monitoring: scripts/monitoring.py
+    # ===================================================================
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y)
     logging.info("Data split into training (%s samples) and test (%s samples) sets.", len(X_train), len(X_test))
 
