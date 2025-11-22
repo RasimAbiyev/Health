@@ -261,8 +261,8 @@ This project includes 6 comprehensive Jupyter notebooks documenting the entire M
 
 ```bash
 # Clone repository
-git clone https://github.com/rasimabiyev/zero2end-churn-prediction.git
-cd zero2end-churn-prediction
+git clone https://github.com/rasimabiyev/Health.git
+cd Health
 
 # Install dependencies
 pip install -r requirements.txt
@@ -480,7 +480,7 @@ if psi_recency > 0.25:
 ## 📁 Project Structure
 
 ```
-zero2end-churn-prediction/
+churn-prediction/
 ├── data/                          # Datasets
 │   ├── olist_customers_dataset.csv
 │   ├── olist_orders_dataset.csv
